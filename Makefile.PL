@@ -1,0 +1,10 @@
+use inc::Module::Install;
+name 'POE-Wheel-Run-Win32';
+author 'Chris Williams <chris@bingosnet.co.uk>';
+license 'perl';
+version_from 'lib/POE/Wheel/Run/Win32.pm';
+requires 'POE' => 0.9917;
+requires 'Win32::Process' => 0;
+requires 'Win32' => 0;
+requires 'Win32::Job' => 0;
+WriteAll();

@@ -1,0 +1,15 @@
+author: Chris Williams <chris@bingosnet.co.uk>
+distribution_type: module
+generated_by: Module::Install version 0.64
+license: perl
+name: POE-Wheel-Run-Win32
+no_index: 
+  directory: 
+    - inc
+    - t
+requires: 
+  POE: 0.9917
+  Win32: 0
+  Win32::Job: 0
+  Win32::Process: 0
+version: 0.01
