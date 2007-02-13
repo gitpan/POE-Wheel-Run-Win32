@@ -5,7 +5,7 @@ package POE::Wheel::Run::Win32;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.01';
+$VERSION = '0.02';
 
 use Carp qw(carp croak);
 use POSIX qw(
@@ -1210,7 +1210,7 @@ __END__
 
 =head1 NAME
 
-POE::Wheel::Run - event driven fork/exec with added value
+POE::Wheel::Run::Win32 - event driven fork/exec with added value
 
 =head1 SYNOPSIS
 
@@ -1218,7 +1218,7 @@ POE::Wheel::Run - event driven fork/exec with added value
   $program = '/usr/bin/cat -';
   $program = [ '/usr/bin/cat', '-' ];
 
-  $wheel = POE::Wheel::Run->new(
+  $wheel = POE::Wheel::Run::Win32->new(
     # Set the program to execute, and optionally some parameters.
     Program     => $program,
     ProgramArgs => \@program_args,
@@ -1320,7 +1320,7 @@ in pixels.
 C<CloseOnCall> emulates the close-on-exec feature for child processes
 which are not started by exec().  When it is set to 1, all open file
 handles whose descriptors are greater than $^F are closed in the child
-process.  This is only effective when POE::Wheel::Run is called with a
+process.  This is only effective when POE::Wheel::Run::Win32 is called with a
 code reference for its Program parameter.
 
   CloseOnCall => 1,
@@ -1432,7 +1432,7 @@ If C<Program> holds an array reference, it will executed as
 exec(@$array).  This form of exec() doesn't expand shell
 metacharacters.
 
-On MSWin32, L<Win32::Job> is used to spawn the new process. POE::Wheel::Run
+On MSWin32, L<Win32::Job> is used to spawn the new process. POE::Wheel::Run::Win32
 joins C<Program> and C<ProgramArgs> with spaces to form the commandline that
 Win32 API call CreateProcess() requires. Any spaces will cause items to be wrapped in double
 quotes.
@@ -1447,7 +1447,7 @@ L<perlfunc> has more information about exec() and the different ways
 to call it.
 
 Note: Do not call exit() explicitly when executing a subroutine.
-POE::Wheel::Run takes special care to avoid object destructors and END
+POE::Wheel::Run::Win32 takes special care to avoid object destructors and END
 blocks in the child process, and calling exit() will thwart that.  You
 may see "POE::Kernel's run() method was never called." or worse.
 
