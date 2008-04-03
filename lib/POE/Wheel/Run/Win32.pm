@@ -1,10 +1,9 @@
-# $Id: Run.pm 2169 2007-01-14 18:09:57Z bingosnet $
-
 package POE::Wheel::Run::Win32;
 
 use strict;
+
 use vars qw($VERSION);
-$VERSION = '0.04';
+$VERSION = '0.06';
 
 use Carp qw(carp croak);
 use POSIX qw(
@@ -42,33 +41,6 @@ BEGIN {
 
     eval    { require Win32; };
     if ($@) { die "Win32 but failed to load:\n$@" }
-  }
-
-  # How else can I get them out?!
-  if (eval '&IO::Tty::Constant::TIOCSCTTY') {
-    *TIOCSCTTY = *IO::Tty::Constant::TIOCSCTTY;
-  }
-  else {
-    eval 'sub TIOCSCTTY () { undef }';
-  }
-
-  if (eval '&IO::Tty::Constant::CIBAUD') {
-    *CIBAUD = *IO::Tty::Constant::CIBAUD;
-  }
-  else {
-    eval 'sub CIBAUD () { undef; }';
-  }
-
-  if (
-    eval '&IO::Tty::Constant::TIOCSWINSZ' and
-    eval '&IO::Tty::Constant::TIOCGWINSZ'
-  ) {
-    *TIOCSWINSZ = *IO::Tty::Constant::TIOCSWINSZ;
-    *TIOCGWINSZ = *IO::Tty::Constant::TIOCGWINSZ;
-  }
-  else {
-    eval 'sub TIOCSWINSZ () { undef; }';
-    eval 'sub TIOCGWINSZ () { undef; }';
   }
 
   # Determine the most file descriptors we can use.
@@ -322,50 +294,23 @@ sub new {
       # Program 19.3, APITUE.  W. Richard Stevens built my hot rod.
       eval 'setsid()' unless $no_setsid;
 
+      # Acquire a controlling terminal.  Program 19.3, APITUE.
+      $stdin_write->make_slave_controlling_terminal();
+
       # Open the slave side of the pty.
       $stdin_read = $stdout_write = $stdin_write->slave();
       croak "could not create slave pty: $!" unless defined $stdin_read;
-      ## for a simple pty conduit, stderr is wedged into stdout:
-      $stderr_write = $stdout_write if $conduit eq 'pty';
 
-      # Acquire a controlling terminal.  Program 19.3, APITUE.
-      if (defined TIOCSCTTY and not defined CIBAUD) {
-        ioctl( $stdin_read, TIOCSCTTY, 0 );
-      }
+      # For a simple pty conduit, stderr is wedged into stdout.
+      $stderr_write = $stdout_write if $conduit eq 'pty';
 
       # Put the pty conduit (slave side) into "raw" or "cbreak" mode,
       # per APITUE 19.4 and 11.10.
-      my $tio = POSIX::Termios->new();
-      $tio->getattr(fileno($stdin_read));
-      my $lflag = $tio->getlflag;
-      $lflag &= ~(ECHO | ICANON | IEXTEN | ISIG);
-      $tio->setlflag($lflag);
-      my $iflag = $tio->getiflag;
-      $iflag &= ~(BRKINT | ICRNL | INPCK | ISTRIP | IXON);
-      $tio->setiflag($iflag);
-      my $cflag = $tio->getcflag;
-      $cflag &= ~(CSIZE | PARENB);
-      $tio->setcflag($cflag);
-      my $oflag = $tio->getoflag;
-      $oflag &= ~(OPOST);
-      $tio->setoflag($oflag);
-      $tio->setattr(fileno($stdin_read), TCSANOW);
+      $stdin_read->set_raw();
 
       # Set the pty conduit (slave side) window size to our window
       # size.  APITUE 19.4 and 19.5.
-      if (defined TIOCGWINSZ) {
-        my $window_size = '!' x 25;
-        if (-t STDIN and !$winsize) {
-          ioctl( STDIN, TIOCGWINSZ, $window_size ) or die $!;
-        }
-        $window_size = pack('SSSS', @$winsize) if ref($winsize);
-        if ($window_size ne '!' x 25) {
-          ioctl( $stdin_read, TIOCSWINSZ, $window_size ) or die $!;
-        }
-        else {
-          carp "STDIN is not a terminal.  Can't set slave pty's window size";
-        }
-      }
+      eval { $stdin_read->clone_winsize_from(\*STDIN) };
     }
 
     # Reset all signals in the child process.  POE's own handlers are
@@ -374,7 +319,7 @@ sub new {
     my @safe_signals = $poe_kernel->_data_sig_get_safe_signals();
     @SIG{@safe_signals} = ("DEFAULT") x @safe_signals;
 
-    # -><- How to pass events to the parent process?  Maybe over a
+    # TODO How to pass events to the parent process?  Maybe over a
     # expedited (OOB) filehandle.
 
     # Fix the child process' priority.  Don't bother doing this if it
@@ -385,26 +330,26 @@ sub new {
       eval {
         if (defined(my $priority = getpriority(0, $$))) {
           unless (setpriority(0, $$, $priority + $priority_delta)) {
-            # -><- can't set child priority
+            # TODO can't set child priority
           }
         }
         else {
-          # -><- can't get child priority
+          # TODO can't get child priority
         }
       };
       if ($@) {
-        # -><- can't get child priority
+        # TODO can't get child priority
       }
     }
 
-    # Fix the group ID.  -><- Add getgrnam so group IDs can be
-    # specified by name.  -><- Warn if not superuser to begin with.
+    # Fix the group ID.  TODO Add getgrnam so group IDs can be
+    # specified by name.  TODO Warn if not superuser to begin with.
     if (defined $group_id) {
       $( = $) = $group_id;
     }
 
-    # Fix the user ID.  -><- Add getpwnam so user IDs can be specified
-    # by name.  -><- Warn if not superuser to begin with.
+    # Fix the user ID.  TODO Add getpwnam so user IDs can be specified
+    # by name.  TODO Warn if not superuser to begin with.
     if (defined $user_id) {
       $< = $> = $user_id;
     }
@@ -443,10 +388,8 @@ sub new {
 
     # Tell the parent that the stdio has been set up.
     close $sem_pipe_read;
-    unless ( POE::Kernel::RUNNING_IN_HELL and ref($program) ne 'CODE' ) {
-      print $sem_pipe_write "go\n";
-      close $sem_pipe_write;
-    }
+    print $sem_pipe_write "go\n";
+    close $sem_pipe_write;
 
     if (POE::Kernel::RUNNING_IN_HELL)  {
       # The Win32 pseudo fork sets up the std handles in the child
@@ -506,7 +449,7 @@ sub new {
     # shiny process. It'll inherit our processes handles which is
     # neat.
     if ( POE::Kernel::RUNNING_IN_HELL ) {
-	my $exitcode = 0;
+        my $exitcode = 0;
         # Close any close-on-exec file descriptors.  Except STDIN,
         # STDOUT, and STDERR, of course.
         if ($close_on_call) {
@@ -519,46 +462,46 @@ sub new {
         }
 
         my ($appname, $cmdline);
-	
+  
         if (ref($program) eq 'ARRAY') {
-	  $appname = $program->[0] =~ /\s/ ? qq{"$program->[0]"} : $program->[0];
-	  $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } (@$program, @$prog_args) );
+          $appname = $program->[0] =~ /\s/ ? qq{"$program->[0]"} : $program->[0];
+          $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } (@$program, @$prog_args) );
         }
         else {
-	  $appname = $program =~ /\s/ ? qq{"$program"} : $program;
-	  $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } ($program, @$prog_args) );
+          $appname = $program =~ /\s/ ? qq{"$program"} : $program;
+          $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } ($program, @$prog_args) );
         }
 
-	my $w32job;
-	
-	unless ( $w32job = Win32::Job->new() ) {
-	  print $sem_pipe_write "go\n";
-  	  close $sem_pipe_write;
-	  die Win32::FormatMessage( Win32::GetLastError() );
-	}
+        my $w32job;
+  
+        unless ( $w32job = Win32::Job->new() ) {
+          print $sem_pipe_write "go\n";
+          close $sem_pipe_write;
+          die Win32::FormatMessage( Win32::GetLastError() );
+        }
 
-	my $w32pid;
+        my $w32pid;
 
-	unless ( $w32pid = $w32job->spawn( $appname, $cmdline ) ) {
-	  print $sem_pipe_write "go\n";
-  	  close $sem_pipe_write;
-	  die Win32::FormatMessage( Win32::GetLastError() );
-	}
-	else {
-	  print $sem_pipe_write "$w32pid\n";
-	  close $sem_pipe_write;
-	  my $ok = $w32job->watch( sub { 0 }, 60 );
-	  my $hashref = $w32job->status();
-	  $exitcode = $hashref->{$w32pid}->{exitcode};
-	}
+        unless ( $w32pid = $w32job->spawn( $appname, $cmdline ) ) {
+          print $sem_pipe_write "go\n";
+          close $sem_pipe_write;
+          die Win32::FormatMessage( Win32::GetLastError() );
+        }
+        else {
+          print $sem_pipe_write "$w32pid\n";
+          close $sem_pipe_write;
+          my $ok = $w32job->watch( sub { 0 }, 60 );
+          my $hashref = $w32job->status();
+          $exitcode = $hashref->{$w32pid}->{exitcode};
+        }
 
         # In case flushing them wasn't good enough.
         close STDOUT if defined fileno(STDOUT);
         close STDERR if defined fileno(STDERR);
 
         exit($exitcode);
-    }
-
+      }
+    
     if (ref($program) eq 'ARRAY') {
       exec(@$program, @$prog_args)
         or die "can't exec (@$program) in child pid $$: $!";
@@ -567,7 +510,7 @@ sub new {
       exec(join(" ", $program, @$prog_args))
         or die "can't exec ($program) in child pid $$: $!";
     }
-
+   
     die "insanity check passed";
   }
 
@@ -613,9 +556,12 @@ sub new {
   ], $type;
 
   # Wait here while the child sets itself up.
-  my $chldout = <$sem_pipe_read>;
-  chomp $chldout;
-  $self->[MSWIN32_GROUP_PID] = $chldout if POE::Kernel::RUNNING_IN_HELL and $chldout ne 'go';
+  {
+    local $/ = "\n";
+    my $chldout = <$sem_pipe_read>;
+    chomp $chldout;
+    $self->[MSWIN32_GROUP_PID] = $chldout if POE::Kernel::RUNNING_IN_HELL and $chldout ne 'go';
+  }
   close $sem_pipe_read;
   close $sem_pipe_write;
 
@@ -1233,7 +1179,7 @@ POE::Wheel::Run::Win32 - event driven fork/exec with added value
     # group ID.  You may need to be root to do this.
     Priority    => +5,
     User        => scalar(getpwnam 'nobody'),
-    Group       => getgrnam('nobody'),
+    Group       => scalar(getgrnam 'nobody'),
 
     # Optionally specify different I/O formats.
     StdinFilter  => POE::Filter::Line->new(),   # Child accepts input as lines.
@@ -1431,16 +1377,13 @@ If C<Program> holds an array reference, it will executed as
 exec(@$array).  This form of exec() doesn't expand shell
 metacharacters.
 
-On MSWin32, L<Win32::Job> is used to spawn the new process. POE::Wheel::Run::Win32
-joins C<Program> and C<ProgramArgs> with spaces to form the commandline that
-Win32 API call CreateProcess() requires. Any spaces will cause items to be wrapped in double
-quotes.
-
 If C<Program> holds a code reference, it will be called in the forked
 child process, and then the child will exit.  This allows Wheel::Run
 to fork off bits of long-running code which can accept STDIN input and
 pass responses to STDOUT and/or STDERR.  Note, however, that POE's
-services are effectively disabled in the child process.
+services are effectively disabled in the child process. See
+L</Nested POE Kernel> for instructions on how to properly use POE within the
+child.
 
 L<perlfunc> has more information about exec() and the different ways
 to call it.
@@ -1633,6 +1576,8 @@ ID.
 
 =head1 TIPS AND TRICKS
 
+=head2 Execution environment
+
 One common task is scrubbing a child process' environment.  This
 amounts to clearing the contents of %ENV and setting it up with some
 known, secure values.
@@ -1654,6 +1599,42 @@ that performs the exec() call for us.
 
 That deletes everything from the environment, sets a simple, secure
 PATH, and executes a program with its arguments.
+
+=head2 Nested POE Kernel
+
+When the process forks the kernel's queue is effectively duplicated, giving the
+child process it's own copy.
+
+This means that if you call C<< $poe_kernel->run >> in the coderef variant of
+C<Program>, the kernel will deliver all currently queued events twice, causing
+the universe to implode, or worse.
+
+This is why L<POE::Wheel::Run::Win32> will exit immediately after executing the code
+reference, before the kernel's loop can dequeue anything more.
+
+In order to allow a POE kernel to be run inside the child process without
+having to C<exec> a new perl script with a fresh L<POE> environment, you can
+call the L<POE::Kernel/stop> method.
+
+Here is an example:
+
+  Program => sub {
+    $poe_kernel->stop; # flush all the kernel structures
+
+    # now that the kernel is clean we can do POEish stuff:
+    POE::Session->create(
+      ...
+    );
+
+    $poe_kernel->run; # this DWIMs now
+  }
+
+If you do not call L<POE::Kernel/stop>, but do call L<POE::Kernel/run> inside
+the child process strange things are bound to happen.
+
+The advantage of calling C<POE::Kernel/stop> is that it allows all the
+advantages of a C<fork> without an C<exec>, namely sharing of read only data,
+but without having to forefit L<POE>'s facilities in the child.
 
 =head1 SEE ALSO
 
@@ -1684,3 +1665,6 @@ names.
 Please see L<POE> for more information about authors and contributors.
 
 =cut
+
+# rocco // vim: ts=2 sw=2 expandtab
+# TODO - Redocument.

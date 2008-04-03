@@ -8,5 +8,5 @@ build_requires 'Test::More' => 0.47;
 requires 'Win32' => 0;
 requires 'Win32::Process' => 0;
 requires 'Win32::Job' => 0;
-requires 'POE' => 0.9917;
+requires 'POE' => 1.0000;
 WriteAll();

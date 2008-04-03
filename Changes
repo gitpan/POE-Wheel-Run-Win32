@@ -1,6 +1,9 @@
 POE::Wheel::Run::Win32
 ======================
 
+0.06	Thu Apr  3 13:53:08 BST 2008
+	- Ported to POE-1.0000 POE::Wheel::Run
+
 0.04	Thu Nov  1 15:37:32 GMT 2007
 	- Updated Module::Install to 0.68
 
