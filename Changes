@@ -1,6 +1,9 @@
 POE::Wheel::Run::Win32
 ======================
 
+0.08	Tue Jun 24 13:11:21 BST 2008
+	- Added LICENSE information.
+
 0.06	Thu Apr  3 13:53:08 BST 2008
 	- Ported to POE-1.0000 POE::Wheel::Run
 

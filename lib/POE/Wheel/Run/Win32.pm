@@ -3,7 +3,7 @@ package POE::Wheel::Run::Win32;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.06';
+$VERSION = '0.08';
 
 use Carp qw(carp croak);
 use POSIX qw(
@@ -1659,6 +1659,10 @@ names.
 
 Group must be specified by GID.  It would be nice to support group
 names.
+
+=head1 LICENSE
+
+POE is free software; you may redistribute it and/or modify it under the same terms as Perl itself.
 
 =head1 AUTHORS & COPYRIGHTS
 
