@@ -1,6 +1,9 @@
 POE::Wheel::Run::Win32
 ======================
 
+0.10	Sat Jan 31 22:04:04 GMT 2009
+	- Fixed kill() method.
+
 0.08	Tue Jun 24 13:11:21 BST 2008
 	- Added LICENSE information.
 

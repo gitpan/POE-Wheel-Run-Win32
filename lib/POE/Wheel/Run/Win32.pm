@@ -3,7 +3,7 @@ package POE::Wheel::Run::Win32;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.08';
+$VERSION = '0.10';
 
 use Carp qw(carp croak);
 use POSIX qw(
@@ -388,8 +388,10 @@ sub new {
 
     # Tell the parent that the stdio has been set up.
     close $sem_pipe_read;
-    print $sem_pipe_write "go\n";
-    close $sem_pipe_write;
+    unless ( ref($program) ne 'CODE' and POE::Kernel::RUNNING_IN_HELL ) {
+      print $sem_pipe_write "go\n";
+      close $sem_pipe_write;
+    }
 
     if (POE::Kernel::RUNNING_IN_HELL)  {
       # The Win32 pseudo fork sets up the std handles in the child
