@@ -3,7 +3,7 @@ package POE::Wheel::Run::Win32;
 use strict;
 
 use vars qw($VERSION);
-$VERSION = '0.10';
+$VERSION = '0.12';
 
 use Carp qw(carp croak);
 use POSIX qw(
@@ -447,7 +447,7 @@ sub new {
       exit(0);
     }
 
-    # RUNNING_IN_HELL use Win32::Process to create a pucker new 
+    # RUNNING_IN_HELL use Win32::Process to create a pucker new
     # shiny process. It'll inherit our processes handles which is
     # neat.
     if ( POE::Kernel::RUNNING_IN_HELL ) {
@@ -464,18 +464,18 @@ sub new {
         }
 
         my ($appname, $cmdline);
-  
-        if (ref($program) eq 'ARRAY') {
-          $appname = $program->[0] =~ /\s/ ? qq{"$program->[0]"} : $program->[0];
-          $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } (@$program, @$prog_args) );
+
+        if (ref $program eq 'ARRAY') {
+          $appname = $program->[0];
+          $cmdline = join(' ', map { /\s/ && ! /"/ ? qq{"$_"} : $_ } (@$program, @$prog_args) );
         }
         else {
-          $appname = $program =~ /\s/ ? qq{"$program"} : $program;
-          $cmdline = join(' ', map { /\s/ ? qq{"$_"} : $_ } ($program, @$prog_args) );
+          $appname = undef;
+          $cmdline = join(' ', $program, map { /\s/ && ! /"/ ? qq{"$_"} : $_ } @$prog_args);
         }
 
         my $w32job;
-  
+
         unless ( $w32job = Win32::Job->new() ) {
           print $sem_pipe_write "go\n";
           close $sem_pipe_write;
@@ -503,7 +503,7 @@ sub new {
 
         exit($exitcode);
       }
-    
+
     if (ref($program) eq 'ARRAY') {
       exec(@$program, @$prog_args)
         or die "can't exec (@$program) in child pid $$: $!";
@@ -512,7 +512,7 @@ sub new {
       exec(join(" ", $program, @$prog_args))
         or die "can't exec ($program) in child pid $$: $!";
     }
-   
+
     die "insanity check passed";
   }
 

@@ -1,6 +1,9 @@
 POE::Wheel::Run::Win32
 ======================
 
+0.12	Tue Mar 10 10:08:41 GMT 2009
+	- Applied patch [RT #43995] from DOLMEN
+
 0.10	Sat Jan 31 22:04:04 GMT 2009
 	- Fixed kill() method.
 
