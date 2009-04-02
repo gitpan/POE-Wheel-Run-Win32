@@ -1,11 +1,13 @@
 ---
-abstract: 'event driven fork/exec with added value'
+abstract: 'portably run blocking code and programs in subprocesses'
 author:
   - 'Chris Williams <chris@bingosnet.co.uk>'
 build_requires:
   Test::More: 0.47
+configure_requires:
+  ExtUtils::MakeMaker: 6.50
 distribution_type: module
-generated_by: 'Module::Install version 0.79'
+generated_by: 'Module::Install version 0.81'
 license: perl
 meta-spec:
   url: http://module-build.sourceforge.net/META-spec-v1.4.html
@@ -16,11 +18,12 @@ no_index:
     - inc
     - t
 requires:
-  POE: 1
+  POE: 1.004
   Win32: 0
   Win32::Job: 0
   Win32::Process: 0
   perl: 5.6.0
 resources:
   license: http://dev.perl.org/licenses/
-version: 0.12
+  repository: git://github.com/bingos/poe-wheel-run-win32.git
+version: 0.14
